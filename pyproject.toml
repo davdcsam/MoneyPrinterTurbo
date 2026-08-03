@@ -48,23 +48,6 @@ twelvelabs = [
     "twelvelabs>=1.2.8",
 ]
 
-# Optional in-process Chatterbox TTS ("chatterbox-local" provider). Pulls in
-# torch/torchaudio (~2-3GB with CUDA wheels) and downloads a further ~3GB model
-# from Hugging Face on first use. Only needed if you select "Chatterbox TTS
-# (Local)" as the TTS server. Install with `uv sync --extra chatterbox-local`.
-chatterbox-local = [
-    "chatterbox-tts>=0.1.4",
-    "torch>=2.2",
-    "torchaudio>=2.2",
-    "torchvision>=0.17",
-    # chatterbox-tts's transitive dep resemble-perth imports `pkg_resources`
-    # at import time without a try/except; setuptools>=80 no longer ships
-    # pkg_resources, which breaks model loading with
-    # `TypeError: 'NoneType' object is not callable` on
-    # perth.PerthImplicitWatermarker(). Pin below that removal.
-    "setuptools<80",
-]
-
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
 

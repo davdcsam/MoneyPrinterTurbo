@@ -7,10 +7,9 @@ duration), each segment gets its own measured TTS audio, and downstream each
 segment gets its own video clip trimmed to that exact duration. This keeps
 camera cuts aligned with sentence boundaries instead of a fixed clock.
 
-Generalizes the segment-synthesis pattern already used by the chatterbox-local
-provider (`app.services.chatterbox_local.engine.synthesize_segments`) to work
-with whichever TTS provider is configured, via the generic `voice.tts()`
-dispatcher.
+Generalizes the segment-synthesis pattern (loop/concat/measure per segment)
+to work with whichever TTS provider is configured, via the generic
+`voice.tts()` dispatcher.
 """
 from __future__ import annotations
 
@@ -109,9 +108,8 @@ def synthesize_segments_generic(
 ) -> list[tuple[str, float, float, float]]:
     """Render each segment via the generic TTS dispatcher, concatenate, measure.
 
-    Mirrors `chatterbox_local.engine.synthesize_segments()`'s loop/concat/
-    return-tuple shape, but calls `voice.tts()` so it works with any
-    configured provider. Returns one (text, spoken_duration_seconds,
+    Calls `voice.tts()` so it works with any configured provider. Returns
+    one (text, spoken_duration_seconds,
     pre_pause_seconds, post_pause_seconds) tuple per segment, in order - the
     exact shape `voice.populate_submaker_from_segment_durations()` expects.
 

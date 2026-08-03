@@ -459,30 +459,3 @@ api_key = ""
 model_id = "chatterbox"
 # Voices exposed by your server; shown in the WebUI dropdown as chatterbox:<name>
 voices = ["default-Female"]
-
-# Chatterbox TTS (in-process, local model) ##################################
-# Runs Chatterbox (https://github.com/resemble-ai/chatterbox, MIT) directly in
-# this process instead of talking to a server — no server to run, but it
-# downloads a ~3GB model from Hugging Face on first use and needs torch (CPU
-# works; GPU or Apple Silicon MPS is much faster). Different, optional
-# provider from [chatterbox] above (which is an HTTP client to an external
-# server); install with `uv sync --extra chatterbox-local`. An LLM (using your
-# already configured [app] llm_provider) first splits the script into short
-# segments and tags each with an emotional tone from a bundled tone catalog;
-# Chatterbox then clones that tone's reference voice per segment ("think
-# before you speak"). Pick "Chatterbox TTS (Local)" in the WebUI, or pass
-# voice_name "chatterbox-local:default" via the API. Subtitles use REAL
-# per-segment audio durations (more accurate than the character-count
-# fallback most other providers here use).
-[chatterbox_local]
-# "auto" picks mps > cuda > cpu; set explicitly to force a device.
-device = "auto"
-# Absolute path to a custom tone-catalog directory (must contain a
-# tone_catalog.yaml plus the wav files it references) to override the bundled
-# default catalog. Leave empty to use the bundled catalog.
-tone_catalog_path = ""
-# true (default): an LLM call splits/tags the script into emotionally-tagged
-# segments. false: treat the whole script as one segment using the catalog's
-# default_tone, skipping the LLM call entirely (lower latency, no extra
-# tone/pacing variation).
-use_llm_planning = true

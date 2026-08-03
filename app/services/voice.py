@@ -187,18 +187,6 @@ def get_chatterbox_voices() -> list[str]:
     return result
 
 
-def get_chatterbox_local_voices() -> list[str]:
-    """Return the selectable profiles for the in-process Chatterbox Local provider.
-
-    Tone selection is automatic per-segment (an LLM tags each segment with an
-    emotional tone from the tone catalog), so "voice" here just selects which
-    tone-catalog/reference-set to use. v1 exposes a single fixed entry backed
-    by the bundled catalog; point ``[chatterbox_local] tone_catalog_path`` at a
-    custom catalog directory to change what it renders as.
-    """
-    return ["chatterbox-local:default-Female"]
-
-
 _AZURE_VOICES_DATA_FILE = os.path.join(
     os.path.dirname(__file__), "data", "azure_voices.json"
 )
@@ -266,10 +254,6 @@ def is_elevenlabs_voice(voice_name: str) -> bool:
 
 def is_chatterbox_voice(voice_name: str) -> bool:
     return (voice_name or "").startswith("chatterbox:")
-
-
-def is_chatterbox_local_voice(voice_name: str) -> bool:
-    return (voice_name or "").startswith("chatterbox-local:")
 
 
 def is_no_voice(voice_name: str | None) -> bool:
@@ -441,13 +425,6 @@ def tts(
         else:
             logger.error(f"Invalid elevenlabs voice name format: {voice_name}")
             return None
-    elif is_chatterbox_local_voice(voice_name):
-        # 格式: chatterbox-local:<profile>，profile 可带显示用的 -Female/-Male 后缀
-        parts = voice_name.split(":", 1)
-        profile = parts[1].strip() if len(parts) >= 2 and parts[1].strip() else "default"
-        if profile.endswith(("-Female", "-Male")):
-            profile = profile.rsplit("-", 1)[0]
-        return chatterbox_local_tts(text, profile, voice_file, voice_rate, voice_volume)
     elif is_chatterbox_voice(voice_name):
         # 格式: chatterbox:<voice>，voice 可带显示用的 -Female/-Male 后缀
         parts = voice_name.split(":", 1)
@@ -1460,81 +1437,6 @@ def chatterbox_tts(
             logger.error(f"chatterbox tts failed: {str(e)}")
 
     return None
-
-
-def chatterbox_local_tts(
-    text: str,
-    voice: str,
-    voice_file: str,
-    voice_rate: float = 1.0,
-    voice_volume: float = 1.0,
-    model_id: str = "",
-) -> Union[SubMaker, None]:
-    """In-process Chatterbox TTS with LLM-driven per-segment emotional tone.
-
-    Ported from a sibling "think before you speak" project: an LLM first reads
-    the full script and splits it into short segments, tagging each with an
-    emotional tone (from a bundled catalog) that drives which reference voice
-    Chatterbox clones and which generation params it uses for that segment.
-    Unlike ``chatterbox_tts`` (an HTTP client to a separate self-hosted
-    server), this loads the Chatterbox model directly in this process — no
-    server to run, but it requires the optional ``chatterbox-local`` extra
-    (``uv sync --extra chatterbox-local``) and downloads a ~3GB model from
-    Hugging Face on first use.
-
-    `voice` selects a tone-catalog profile (currently only "default" is
-    meaningful). `voice_rate` and `voice_volume` are accepted for signature
-    parity with other providers but not applied here: volume is re-applied at
-    final video merge regardless, and Chatterbox has no native rate control.
-    `model_id` is reserved/unused (single bundled model).
-    """
-    text = (text or "").strip()
-    if not text:
-        logger.error("Chatterbox Local TTS text is empty")
-        return None
-
-    cfg = config.chatterbox_local
-    device_preference = cfg.get("device", "auto") or "auto"
-    use_llm_planning = cfg.get("use_llm_planning", True)
-    tone_catalog_path = (cfg.get("tone_catalog_path", "") or "").strip() or None
-
-    try:
-        from app.services.chatterbox_local import engine, tone_planner
-
-        catalog = tone_planner.load_tone_catalog(tone_catalog_path)
-        tone_dir = catalog["_catalog_dir"]
-
-        segments_plan = tone_planner.plan_script_segments(
-            text, catalog, use_llm_planning=use_llm_planning
-        )
-        if not segments_plan:
-            logger.error("Chatterbox Local TTS produced no segments to synthesize")
-            return None
-
-        ensure_file_path_exists(voice_file)
-        logger.info(
-            f"start chatterbox-local tts, profile: {voice}, segments: {len(segments_plan)}"
-        )
-        rendered_segments = engine.synthesize_segments(
-            segments_plan,
-            catalog=catalog,
-            tone_dir=tone_dir,
-            device_preference=device_preference,
-            output_path=voice_file,
-        )
-    except ImportError as e:
-        logger.error(
-            "Chatterbox Local TTS dependencies are not installed. Install them with "
-            f"`uv sync --extra chatterbox-local`. ({e})"
-        )
-        return None
-    except Exception as e:
-        logger.error(f"chatterbox-local tts failed: {str(e)}")
-        return None
-
-    sub_maker = ensure_legacy_submaker_fields(SubMaker())
-    logger.success(f"chatterbox-local tts succeeded: {voice_file}")
-    return populate_submaker_from_segment_durations(sub_maker, rendered_segments)
 
 
 def _format_text(text: str) -> str:
